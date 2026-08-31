@@ -252,16 +252,44 @@ groups:
         annotations:
           summary: "Only {{ $value }} peers on {{ $labels.instance }}"
 
-      # Measured on a stock node with 142 peers: the ten heaviest took 31% of
-      # everything sent. Past 60% a handful of peers is pulling history
-      # through you, which is the shape a bandwidth bill takes before anyone
-      # notices it.
+      # The first version of this read xrpl_peer_traffic_top_share against a
+      # flat 0.6 and was exactly backwards. That share moves with peer count:
+      # spread perfectly evenly, ten peers out of thirty take a third and ten
+      # out of a hundred and forty take a fourteenth. So the rule fired on the
+      # emptiest nodes and stayed quiet on the busiest. Measured across six
+      # nodes the morning it went in:
+      #
+      #   peers  top-ten share  even spread  ratio
+      #     138          31.2%         7.2%   4.3   quiet
+      #     142          27.3%         7.0%   3.9   quiet
+      #      23          68.7%        43.5%   1.6   FIRED
+      #      12          94.1%        83.3%   1.1   FIRED
+      #       2         100.0%       100.0%   1.0   FIRED
+      #
+      # The bottom row is not a measurement, it is arithmetic: the top ten of
+      # two peers is everything, always.
+      #
+      # xrpl_peer_traffic_concentration divides the share by what an even
+      # spread would give, so it reads the same on any node. One is even.
+      #
+      # Three conditions, and each earns its place. Concentration says the
+      # traffic is lopsided; the peer count keeps the ratio meaningful, since
+      # ten out of twelve is still mostly arithmetic; and the byte rate keeps
+      # this quiet on a node whose traffic nobody is paying for. Lopsided and
+      # cheap is not a problem.
+      #
+      # The 5x threshold is NOT calibrated against a real incident. Healthy
+      # stock nodes sit at 3.9 and 4.3, so it has margin, and that is all that
+      # can be said for it. Watch it before letting it page anyone.
       - alert: XrplPeerTrafficConcentrated
-        expr: xrpl_peer_traffic_top_share > 0.6
+        expr: >-
+          xrpl_peer_traffic_concentration > 5
+          and on(instance) xrpl_peers_total > 3 * xrpl_peer_top_n
+          and on(instance) rate(xrpl_peer_bytes_sent_total[1h]) > 2e6
         for: 2h
         labels: { severity: warning }
         annotations:
-          summary: "Top peers take {{ $value | humanizePercentage }} of outbound on {{ $labels.instance }}"
+          summary: "Heaviest peers on {{ $labels.instance }} take {{ $value | humanize }}x their even share of outbound"
           description: >-
             Check xrpl_peer_bytes_sent for the names. Being used as a cheap
             history mirror looks exactly like this.

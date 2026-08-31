@@ -151,6 +151,52 @@ over the same window by hand.
 
 ---
 
+## A concentration alert that fired on the flattest nodes
+
+**Fired on:** four of six nodes, the morning after it was written. All four
+were fine. The two nodes it stayed quiet about were the concentrated ones.
+
+`xrpl_peer_traffic_top_share` is the share of outbound bytes taken by the ten
+heaviest peers, and the rule read it against a flat 0.6. The threshold came
+from a real measurement on a real node, which is what made it feel safe. It
+was still wrong, because the share moves with peer count. Spread perfectly
+evenly, ten peers out of thirty take a third of everything and ten out of a
+hundred and forty take a fourteenth.
+
+Measured across the fleet:
+
+```
+peers  top-ten share  even spread  ratio
+  138          31.2%         7.2%   4.3   quiet
+  142          27.3%         7.0%   3.9   quiet
+   23          68.7%        43.5%   1.6   FIRED
+   12          94.1%        83.3%   1.1   FIRED
+    2         100.0%       100.0%   1.0   FIRED
+```
+
+The bottom row is not a measurement. The top ten of two peers is everything,
+always, and no amount of tuning the threshold changes that.
+
+**Now:** the exporter stops publishing the share below the cap, where the
+number cannot mean anything, and publishes
+`xrpl_peer_traffic_concentration` alongside it: the share divided by what an
+even spread would give. One is even, higher is concentrated, and it reads the
+same on a node with two peers or two hundred.
+
+The rule carries three conditions and each earns its place. Concentration says
+the traffic is lopsided. The peer count keeps the ratio meaningful, because
+ten out of twelve is still mostly arithmetic. The byte rate keeps it quiet on
+a node whose traffic nobody is paying for, since lopsided and cheap is not a
+problem worth waking up for.
+
+**The general shape, which is worth more than the fix:** a threshold taken
+from one healthy node is not calibration. It tells you what normal looks like
+*there*. Before trusting it, check what the metric does on the smallest and
+emptiest machine you have, because that is usually where it stops meaning what
+you think it means.
+
+---
+
 ## Things we chose not to alert on
 
 **Peer version spread.** `xrpl_peer_versions` is genuinely useful and belongs

@@ -423,10 +423,30 @@ def collect_peers():
         s.add("xrpl_peer_bytes_sent", other_sent, mtype="counter", peer="other")
         s.add("xrpl_peer_bytes_recv", other_recv, mtype="counter", peer="other")
 
-    if total_sent > 0:
+    # Published so a rule can scale itself to the cap instead of hardcoding it.
+    s.add("xrpl_peer_top_n", PEER_TOP_N,
+          "How many peers get their own byte counters")
+
+    # Concentration only means something when there are meaningfully more peers
+    # than the cap. Below that the share is arithmetic: the top ten of two peers
+    # is a hundred percent, always, and a rule reading it fires on the quietest
+    # node in the fleet while the busiest one stays silent.
+    if total_sent > 0 and len(ranked) > PEER_TOP_N:
         top_share = sum(row[0] for row in ranked[:PEER_TOP_N]) / total_sent
         s.add("xrpl_peer_traffic_top_share", top_share,
-              "Share of outbound bytes taken by the heaviest peers")
+              "Share of outbound bytes taken by the heaviest peers. Only "
+              "published when there are more peers than the cap, because "
+              "below that it is always one")
+
+        # The share on its own still moves with peer count: spread perfectly
+        # evenly, ten of thirty peers take a third and ten of a hundred and
+        # forty take a fourteenth. Dividing by that floor gives a number that
+        # means the same thing on any node. One is perfectly even, and higher
+        # is genuinely concentrated.
+        even_floor = PEER_TOP_N / len(ranked)
+        s.add("xrpl_peer_traffic_concentration", top_share / even_floor,
+              "How much more of the outbound the heaviest peers take than an "
+              "even spread would give them")
 
     publish("peers", s)
 
