@@ -83,14 +83,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_server_state{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -99,7 +100,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -181,14 +181,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_peers_total{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -197,7 +198,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -245,14 +245,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_validated_ledger_age_seconds{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -261,7 +262,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -317,14 +317,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_manifest_seq{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -333,7 +334,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -381,14 +381,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_amendment_blocked{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -397,7 +398,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -463,14 +463,15 @@
           },
           "editorMode": "code",
           "expr": "sum(xrpl_collector_failed{instance=~\"$instance\"})",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -479,7 +480,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -544,14 +544,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_listed{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -560,7 +561,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -626,14 +626,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_master_key_present{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -642,7 +643,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -708,14 +708,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_domain_present{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -724,7 +725,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -790,14 +790,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_unl_listed{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -806,7 +807,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -868,14 +868,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_agreement_score{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -884,7 +885,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -940,14 +940,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_registry_lookup_code{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -956,7 +957,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -1335,9 +1335,9 @@
       "panels": []
     },
     {
-      "type": "stat",
+      "type": "bargauge",
       "title": "UNL expires in",
-      "description": "An expired trusted list stops the node validating, and nothing else warns about it.",
+      "description": "Every node holds the same lists, so this takes the soonest expiry per publisher rather than one bar per node. An expired list stops the node validating and nothing else warns about it.",
       "id": 22,
       "datasource": {
         "type": "prometheus",
@@ -1356,15 +1356,17 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "xrpl_unl_expires_seconds{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "expr": "min by (publisher) (xrpl_unl_expires_seconds{instance=~\"$instance\"})",
+          "legendFormat": "{{publisher}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "N"
         }
       ],
       "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1372,35 +1374,13 @@
           "fields": "",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto"
+        "showUnfilled": true
       },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "mappings": [],
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 2592000
-              },
-              {
-                "color": "green",
-                "value": 7776000
-              }
-            ]
+            "mode": "continuous-BlPu"
           }
         },
         "overrides": []
@@ -1429,14 +1409,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_amendments_in_majority{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1445,7 +1426,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -1493,14 +1473,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_amendments_unsupported_majority{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1509,7 +1490,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -1561,14 +1541,15 @@
           },
           "editorMode": "code",
           "expr": "xrpl_amendments_enabled_total{instance=~\"$instance\"}",
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": false,
           "instant": true,
           "format": "time_series",
-          "refId": "A"
+          "refId": "M"
         }
       ],
       "options": {
+        "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1577,7 +1558,6 @@
           "values": false
         },
         "orientation": "auto",
-        "textMode": "auto",
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto"
@@ -1668,8 +1648,31 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "job": true
+              "job": true,
+              "__name__": true,
+              "net": true,
+              "network": true,
+              "role": true
+            },
+            "renameByName": {
+              "name": "amendment",
+              "instance": "node"
+            },
+            "indexByName": {
+              "name": 0,
+              "instance": 1
             }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "activates in"
+              }
+            ]
           }
         }
       ],
@@ -1712,11 +1715,11 @@
           },
           "editorMode": "code",
           "expr": "xrpl_amendment_eta_seconds{instance=~\"$instance\"}",
-          "legendFormat": "{{name}}",
+          "legendFormat": "{{name}} @ {{instance}}",
           "range": true,
           "instant": false,
           "format": "time_series",
-          "refId": "I"
+          "refId": "D"
         }
       ],
       "options": {
