@@ -125,6 +125,38 @@ def escape_label(value):
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
 
 
+def is_private_address(address):
+    """True when a peer address sits in a private range.
+
+    Used to answer one specific question: is a validator that is supposed to
+    be reachable only through its own stock nodes actually isolated. A single
+    public peer means the isolation has broken, and the node is now reachable
+    from the open network whether or not anybody has noticed.
+
+    IPv4 private ranges plus loopback and link-local, and the IPv6
+    equivalents. Peer addresses arrive as host:port and IPv6 comes bracketed.
+    """
+    if not address:
+        return False
+    text = str(address)
+    if text.startswith("["):
+        text = text[1:text.find("]")] if "]" in text else text[1:]
+    elif text.count(":") == 1:
+        text = text.split(":")[0]
+    text = text.lower()
+    if text.startswith(("fc", "fd", "fe8", "fe9", "fea", "feb")) or text in ("::1",):
+        return True
+    parts = text.split(".")
+    if len(parts) != 4:
+        return False
+    try:
+        a, b = int(parts[0]), int(parts[1])
+    except ValueError:
+        return False
+    return (a == 10 or a == 127 or (a == 192 and b == 168)
+            or (a == 172 and 16 <= b <= 31) or (a == 169 and b == 254))
+
+
 def num(value):
     """Coerce a JSON value to a number, or None.
 
@@ -302,6 +334,13 @@ def collect_peers():
     s.add("xrpl_peers_inbound", inbound, "Peers that connected to us")
     s.add("xrpl_peers_outbound", len(peers) - inbound, "Peers we connected to")
     s.add("xrpl_peers_cluster", cluster, "Peers recognised as our own cluster")
+
+    private = sum(1 for p in peers if is_private_address(p.get("address")))
+    s.add("xrpl_peers_private", private, "Peers reached over a private network")
+    s.add("xrpl_peers_public", len(peers) - private,
+          "Peers outside any private range. On a validator that is meant to sit "
+          "behind its own stock nodes this should be zero, and anything above "
+          "zero means the isolation has broken")
 
     # Version spread. One well-connected node sees enough of the network for
     # this to be a usable estimate of how far an upgrade has spread, which is

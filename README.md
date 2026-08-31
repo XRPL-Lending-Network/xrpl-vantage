@@ -69,7 +69,7 @@ They are separate on purpose.
 and nothing else. Disk, memory, RAID, clock, load, traffic. Useful on any Linux
 box; they are here because they were tuned on nodes.
 
-**`rules/xrpl-vantage.yml`** holds 21 rules on the metrics from this exporter.
+**`rules/xrpl-vantage.yml`** holds 22 rules on the metrics from this exporter.
 Trusted list expiry, amendment blocking ahead of time, registry visibility,
 manifest sequence regression, peer traffic concentration, consensus minority.
 

@@ -227,6 +227,20 @@ groups:
   - name: xrpl-peers
     rules:
 
+      # A validator that is meant to be reachable only through its own stock
+      # nodes should have no peers outside a private range at all. One public
+      # peer means the isolation has broken and the node is now reachable from
+      # the open network, which is the sort of thing that stays unnoticed
+      # because nothing else about the node changes.
+      #
+      # Delete this rule if your validator is deliberately public.
+      - alert: XrplValidatorNotIsolated
+        expr: xrpl_peers_public > 0 and on(instance) xrpl_validator_configured == 1
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Validator on {{ $labels.instance }} has {{ $value }} peer(s) outside its private network"
+
       # No default that suits everyone. A validator wired to two stock nodes
       # of its own should sit at exactly 2; a public node with peers_max at
       # 140 will sit near that. Set the threshold per node group and delete
