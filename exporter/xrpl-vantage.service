@@ -1,0 +1,49 @@
+# Runs alongside the node, talking to its admin RPC on loopback.
+#
+# Install:
+#   install -m 0755 xrpl_vantage.py /usr/local/bin/xrpl-vantage
+#   install -m 0644 xrpl-vantage.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now xrpl-vantage
+
+[Unit]
+Description=XRPL Vantage exporter
+Documentation=https://github.com/OWNER/xrpl-vantage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/xrpl-vantage
+Restart=always
+RestartSec=10
+
+# Bind to loopback and let the metrics collector reach it over a private
+# network or a tunnel. There is nothing secret in these metrics, but the
+# machine they come from usually is.
+Environment=XRPL_RPC_URL=http://127.0.0.1:5005/
+Environment=XRPL_LISTEN_ADDR=127.0.0.1
+Environment=XRPL_LISTEN_PORT=9101
+
+# The registry section makes one outbound HTTPS call every five minutes. Set
+# this to 0 on a machine that is not allowed to talk to the internet; the
+# rest of the exporter carries on without it.
+Environment=XRPL_REGISTRY=1
+
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,289 @@
+# Host alerts for machines running an XRP Ledger node. Plain node_exporter,
+# no XRPL-specific exporter needed, so this file stands on its own.
+#
+# Most of these started out wrong and were rewritten after they woke somebody
+# up for nothing. The comments say which ones and why, because the rewrite is
+# usually more useful than the rule. The short version of what we learned:
+# alert on a resource running out or a thing failing, never on a state the
+# system passes through normally.
+#
+# Two thresholds are site-specific and marked SITE below. Change them or drop
+# the rules; everything else is safe to take as is.
+
+groups:
+  - name: host
+    rules:
+
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "No host metrics from {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: >-
+          node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"}
+          / node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"} < 0.15
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | humanizePercentage }} free"
+
+      - alert: DiskSpaceCritical
+        expr: >-
+          node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"}
+          / node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"} < 0.07
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} is nearly full"
+
+      # A node database does not grow smoothly. It grows until the rotation
+      # interval is reached, then a second backend appears alongside the
+      # first, and the old one is only dropped at the rotation after that. So
+      # the disk graph is a sawtooth, and a prediction from the falling edge
+      # will happily tell you the disk dies tomorrow when a rotation is due in
+      # an hour. Twenty-four hours of lookahead is short enough to survive
+      # that; going wider produces a permanent alert on a healthy node.
+      - alert: DiskWillFillSoon
+        expr: >-
+          predict_linear(node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"}[6h], 24*3600) < 0
+          and node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"}
+              / node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs", mountpoint!~"/boot.*"} < 0.3
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} runs out within a day at this rate"
+
+      - alert: MemoryPressure
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Available memory on {{ $labels.instance }} down to {{ $value | humanizePercentage }}"
+
+      - alert: FilesystemReadOnly
+        expr: node_filesystem_readonly{mountpoint="/"} == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Root filesystem on {{ $labels.instance }} went read-only"
+          description: >-
+            Normally the end of a disk going bad. The node keeps looking alive
+            while writing into nothing.
+
+      - alert: HostRebooted
+        expr: node_time_seconds - node_boot_time_seconds < 600
+        labels: { severity: info }
+        annotations:
+          summary: "{{ $labels.instance }} rebooted"
+
+  - name: memory
+    rules:
+
+      # Swap being occupied means nothing on its own, and this rule proved it
+      # by firing on a node with 27% of swap used, 47 GB of memory available
+      # and no paging at all. On a process that has been up for eleven days,
+      # pages touched once at startup get evicted and never come back. That is
+      # the kernel doing its job.
+      #
+      # So occupancy now only counts alongside actual shortage: more than half
+      # of swap in use AND less than a fifth of memory available.
+      - alert: SwapUsageHigh
+        expr: >-
+          (1 - (node_memory_SwapFree_bytes / (node_memory_SwapTotal_bytes > 0)) > 0.5)
+          and
+          (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.2)
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Swap on {{ $labels.instance }} is filling up while memory is short"
+
+      # This is the one that matters. Pages being read back from swap is the
+      # difference between "the kernel parked something" and "the machine is
+      # thrashing". On a hypervisor it means guest memory is being paged, and
+      # the guests are stalling for reasons they cannot see.
+      - alert: SwapThrashing
+        expr: rate(node_vmstat_pswpin[5m]) > 100
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} is reading {{ $value }} pages/s back from swap"
+
+  - name: hardware
+    rules:
+
+      - alert: RaidDegraded
+        expr: sum by (instance, device) (node_md_disks{state="failed"}) > 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Failed disk in {{ $labels.device }} on {{ $labels.instance }}"
+
+      # The obvious version of this rule is node_md_state{state="active"} != 1
+      # and it is wrong. Debian and Ubuntu run a monthly integrity check via
+      # checkarray, and during it the array reports state "checking" while the
+      # neighbouring arrays queue up as "resyncing". Nothing has failed, both
+      # mirrors are complete, and the obvious rule fires three criticals at
+      # once on a perfectly healthy host, once a month:
+      #
+      #     md0  active raid1  [2/2] [UU]  clean
+      #     md1  active raid1  [2/2] [UU]  clean, resyncing (DELAYED)
+      #     md2  active raid1  [2/2] [UU]  active, checking  5.6%
+      #
+      # Counting active disks against required disks does not care what the
+      # array is busy with. During a check both disks stay active, so this
+      # stays quiet; when one drops out the count falls and it fires.
+      - alert: RaidArrayIncomplete
+        expr: >-
+          sum by (instance, device) (node_md_disks{state="active"})
+          < max by (instance, device) (node_md_disks_required)
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.device }} on {{ $labels.instance }} has fewer disks than it needs"
+
+      # The only rule that catches a large time jump, and it earned that the
+      # hard way. A hypervisor froze a guest for five and a half hours; the
+      # guest clock came back that far behind and chrony was not allowed to
+      # step it any more, so it started slewing at 8.3% and would have taken
+      # 2.7 days. Everything else looked fine while that was happening:
+      # chronyc listed eight healthy sources with offsets in microseconds, and
+      # node_timex_offset_seconds sat at exactly zero because the correction
+      # was being applied smoothly and the kernel had nothing to report.
+      #
+      # Do not lower the severity or lengthen the for. This flag comes up
+      # rarely and it has never been wrong.
+      - alert: ClockNotSynchronised
+        expr: node_timex_sync_status == 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Clock on {{ $labels.instance }} is not synchronised"
+          description: >-
+            The kernel considers system time unreliable. Two usual causes: the
+            time daemon lost its sources, or it knows about a gap and is
+            correcting it slowly enough to take days. Check chronyc tracking;
+            the System time line shows the real gap, which can be hours while
+            node_timex_offset_seconds reads zero. One-off fix is chronyc
+            makestep.
+
+      # Catches slow drift and only that. A large jump does not show up here
+      # by design: while the correction is being slewed the offset visible to
+      # the kernel stays near zero. On the incident above it was a flat zero
+      # with the clock 19,422 seconds out. Do not try to fix this rule with a
+      # different threshold; it is doing its job, and the big case belongs to
+      # ClockNotSynchronised above.
+      - alert: ClockDrift
+        expr: abs(node_timex_offset_seconds) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Clock on {{ $labels.instance }} drifting by {{ $value }}s"
+
+      - alert: DiskIOSaturated
+        expr: max by (instance, device) (rate(node_disk_io_time_seconds_total[5m])) > 0.9
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.device }} on {{ $labels.instance }} is busy {{ $value | humanizePercentage }} of the time"
+
+      - alert: HighLoad
+        expr: >-
+          node_load5 / on(instance) group_left
+          count by (instance) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Load on {{ $labels.instance }} is {{ $value }} per core"
+
+      # SITE. Two units fail harmlessly on a stock Ubuntu install: the
+      # firmware metadata refresh, and the boot-time wait for network that
+      # gives up on interfaces that were never going to come up. Without the
+      # exclusion this alert is permanent noise. Add your own rather than
+      # dropping the rule.
+      - alert: SystemdUnitFailed
+        expr: >-
+          node_systemd_unit_state{state="failed",
+            name!~"fwupd-refresh.service|systemd-networkd-wait-online.service"} == 1
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Unit {{ $labels.name }} failed on {{ $labels.instance }}"
+
+      - alert: NetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Receive errors on {{ $labels.device }} at {{ $labels.instance }}"
+
+      - alert: ConntrackNearLimit
+        expr: node_nf_conntrack_entries / node_nf_conntrack_entries_limit > 0.8
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Conntrack table on {{ $labels.instance }} is {{ $value | humanizePercentage }} full"
+          description: >-
+            A public node with a high peer limit gets here sooner than you
+            would expect. New connections are dropped once it is full.
+
+  - name: traffic
+    rules:
+
+      # The last clause is a sanity check on the baseline, not a refinement of
+      # the alert. This rule compares half an hour against six hours, and a
+      # hole in the six-hour window destroys the denominator: rate() divides
+      # the counter delta by the full window length, so a window that only
+      # holds data for a fifth of its span reports a fifth of the real rate,
+      # and ordinary traffic looks like a tenfold spike.
+      #
+      # That is not hypothetical. When the clock on the monitoring host jumped
+      # five and a half hours forward, it left exactly that hole:
+      #
+      #     actual egress            6.07 MB/s   (three-day norm 6.6-8.1)
+      #     rate[6h] over the hole   0.59 MB/s
+      #     6.07 > 5 x 0.59          fires, on a node doing nothing unusual
+      #
+      # Sample counts in the two windows sit at exactly 12:1 when coverage is
+      # complete, whatever the scrape interval, which is why the guard is a
+      # ratio and not an absolute count. During the incident it read 2.25.
+      - alert: EgressSpike
+        expr: >-
+          rate(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[30m])
+          > 5 * rate(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[6h])
+          and rate(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[30m]) > 2e6
+          and
+          count_over_time(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[6h])
+          / count_over_time(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[30m])
+          > 8
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Outbound traffic on {{ $labels.instance }} is five times its own norm"
+          description: >-
+            Usually either load on the public peer port, or the node being
+            used as a cheap history mirror. xrpl_peer_bytes_sent will name the
+            peer if you run the XRPL exporter as well.
+
+      # SITE. 50 TB is half of a 100 TB monthly allowance. Set it to half of
+      # yours, or delete the rule if you are not metered.
+      #
+      # Worth knowing how fast this scales: bandwidth tracks peer count almost
+      # linearly. Measured on one node, 156 peers produced 593 GB/day and 191
+      # peers produced 1522 GB/day, which is 3.8 and 8.0 GB per peer. Raising
+      # the peer limit is the usual reason this fires.
+      #
+      # A data gap hurts this rule in the opposite direction to EgressSpike: a
+      # deflated rate deflates the projection, so it goes quiet exactly when
+      # it should not. No guard here, because a guard would also produce no
+      # alert. If it falls suspiciously silent after a clock problem, check
+      # count_over_time over the same window.
+      - alert: TrafficQuotaProjection
+        expr: >-
+          rate(node_network_transmit_bytes_total{device=~"bond0|ens3|eth0|enp35s0"}[6h])
+          * 2592000 > 50e12
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} is on track to use more than half its monthly allowance"

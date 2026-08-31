@@ -1,0 +1,28 @@
+# Scrape config for Prometheus or vmagent.
+#
+# The exporter listens on loopback by default, so the collector needs a route
+# to the machine: a private network, a WireGuard tunnel, or an SSH forward.
+# Do not move it to 0.0.0.0 to save yourself the trouble.
+
+scrape_configs:
+  - job_name: xrpl
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 10.0.0.10:9101
+        labels:
+          role: validator
+      - targets:
+          - 10.0.0.20:9101
+          - 10.0.0.21:9101
+        labels:
+          role: stock
+
+  # The host rules in rules/node-exporter.yml expect job="node".
+  - job_name: node
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 10.0.0.10:9100
+          - 10.0.0.20:9100
+          - 10.0.0.21:9100

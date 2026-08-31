@@ -1,0 +1,288 @@
+# Alerts built on the metrics from xrpl_vantage.py.
+#
+# Every threshold here was picked against a measurement rather than a guess,
+# and where the measurement is thin the comment says so. Numbers came off a
+# mainnet validator and two stock nodes; if your setup is very different,
+# check the baselines before trusting the defaults.
+#
+# Host-level alerting (disk, RAM, RAID, clock, traffic) lives in
+# node-exporter.yml next to this file. Nothing here duplicates it.
+
+groups:
+  - name: xrpl-node
+    rules:
+
+      - alert: XrplExporterDown
+        expr: up{job=~"xrpl.*"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "No metrics from {{ $labels.instance }}"
+          description: >-
+            The exporter is not answering. This says nothing about the node
+            itself, only that we stopped being able to see it.
+
+      # The exporter answers even when the node does not, on purpose: losing
+      # the node and losing the exporter are different problems and want
+      # different responses.
+      - alert: XrplNodeUnreachable
+        expr: xrpl_up == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Node on {{ $labels.instance }} is not answering admin RPC"
+          description: >-
+            The exporter is up but the node behind it is not responding on
+            the admin port. Usually the process died or is still starting.
+
+      - alert: XrplNodeNotReady
+        expr: xrpl_server_ready == 0
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Node on {{ $labels.instance }} is not caught up"
+          description: >-
+            State is {{ $labels.state }}. A few minutes of this after a
+            restart is normal. Fifteen is not.
+
+      # Ledgers close about every four seconds. Twenty is five closes behind,
+      # which is past anything a healthy node does on its own.
+      - alert: XrplLedgerLagging
+        expr: xrpl_validated_ledger_age_seconds > 20
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Last validated ledger on {{ $labels.instance }} is {{ $value }}s old"
+
+      - alert: XrplAmendmentBlocked
+        expr: xrpl_amendment_blocked == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Node on {{ $labels.instance }} is amendment blocked"
+          description: >-
+            The network switched on an amendment this binary cannot apply, so
+            the node has stopped. Upgrade is the only way out. If you are
+            seeing this alert, XrplAmendmentBlockedSoon should have fired
+            about two weeks ago; worth checking why it did not.
+
+      # The one worth having. An amendment that holds a majority activates
+      # roughly two weeks later, so a binary that does not know it has two
+      # weeks to be replaced. Everything else in the ecosystem reports the
+      # block after it happens.
+      - alert: XrplAmendmentBlockedSoon
+        expr: xrpl_amendments_unsupported_majority > 0
+        for: 1h
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $value }} amendment(s) heading for activation that {{ $labels.instance }} cannot apply"
+          description: >-
+            Upgrade before they activate or the node stops. Check
+            xrpl_amendment_eta_seconds for how long you have.
+
+      # The trusted list carries an expiry date. When it passes the node
+      # stops validating, and nothing else warns about it. On the machines
+      # this was written against the two publishers sat 218 and 306 days out,
+      # so a month of notice is comfortable rather than tight.
+      - alert: XrplUnlExpiringSoon
+        expr: xrpl_unl_expires_seconds < 30 * 24 * 3600
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Trusted list from {{ $labels.publisher }} expires in {{ $value | humanizeDuration }}"
+
+      - alert: XrplUnlExpired
+        expr: xrpl_unl_expires_seconds < 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Trusted list from {{ $labels.publisher }} has expired"
+          description: >-
+            The node cannot validate against an expired list.
+
+      - alert: XrplUnlUnavailable
+        expr: xrpl_unl_available == 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "No usable list from {{ $labels.publisher }} on {{ $labels.instance }}"
+
+      # Sites are polled every five minutes. An hour of failures means five
+      # or six misses in a row, which is a real outage rather than one bad
+      # fetch. The list stays valid meanwhile, so this is a warning: it
+      # matters because it is the early half of XrplUnlExpiring.
+      - alert: XrplUnlRefreshFailing
+        expr: xrpl_unl_refresh_ok == 0
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Cannot refresh the list from {{ $labels.site }}"
+          description: "Last refresh status was {{ $labels.status }}."
+
+  - name: xrpl-registry
+    rules:
+
+      # These four are about whether the rest of the world can see this
+      # validator, which is not the same question as whether it is working.
+      # A validator can hold a perfect agreement score and still be invisible
+      # to anything that looks it up by master key.
+
+      - alert: XrplRegistryUnlisted
+        expr: xrpl_registry_listed == 0
+        for: 24h
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} has no record in the validator registry"
+          description: >-
+            A new validator takes a while to appear, so this only fires after
+            a full day. If it fires on an established validator, its
+            validations are not reaching the registry at all.
+
+      # The interesting one. The record exists, the domain is there, the
+      # agreement score is being computed, and the link to the master key is
+      # gone anyway. Every lookup by master key then fails. When this was
+      # written it was the state of 93 of the 289 validators in the public
+      # registry, 56 of them with a domain still attached, and none of their
+      # operators had any way to notice.
+      #
+      # Six hours rather than one because the linkage is written by two
+      # different paths that race, and the loser wins often enough that short
+      # windows are noise. Ours flipped three times in six consecutive
+      # samples.
+      - alert: XrplRegistryMasterKeyMissing
+        expr: xrpl_registry_listed == 1 and xrpl_registry_master_key_present == 0
+        for: 6h
+        labels: { severity: warning }
+        annotations:
+          summary: "Registry record for {{ $labels.instance }} has lost its master key"
+          description: >-
+            The validator is listed and validating, but anything looking it
+            up by master key gets nothing back. Explorers that resolve by
+            master key will show it as missing.
+
+      - alert: XrplRegistryLookupBroken
+        expr: xrpl_registry_lookup_code >= 500
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Validator registry is returning {{ $value }}"
+          description: >-
+            Server-side failure at the registry, not something on this node.
+            Worth knowing because it makes every other registry metric here
+            stale.
+
+      # A manifest sequence only ever goes up. If it drops, an older
+      # validator token was deployed over a newer one, and the network will
+      # ignore the node's validations because it still trusts the signing key
+      # from the higher sequence. Silent and total.
+      - alert: XrplManifestSequenceRegressed
+        expr: xrpl_manifest_seq < max_over_time(xrpl_manifest_seq[7d])
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Manifest sequence on {{ $labels.instance }} went backwards"
+          description: >-
+            Now {{ $value }}, was higher within the last week. An old
+            validator token has been deployed. The network is still trusting
+            the previous signing key, so validations from this node are being
+            discarded.
+
+  - name: xrpl-consensus
+    rules:
+
+      - alert: XrplValidatorNotProposing
+        expr: xrpl_validator_configured == 1 and xrpl_consensus_proposing == 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Validator on {{ $labels.instance }} has stopped proposing"
+
+      # Being in a dispute is ordinary. A transaction reaches some nodes
+      # before the ledger closes and others after, and the disagreement gets
+      # resolved in the round. Being on the losing side of most of them is
+      # different: it means this node is seeing a different network than its
+      # peers, which is what a squeezed uplink or a drifting clock looks like
+      # from the inside.
+      #
+      # Baseline from a healthy mainnet validator, twelve samples over a
+      # minute: 119 disputes, 10 of them in the minority, ratio 0.084. It is
+      # spiky rather than steady, hitting 0.31 in one round and 0 in the next,
+      # which is why this averages over fifteen minutes instead of reading the
+      # instant value.
+      #
+      # The 0.4 threshold has a comfortable margin over that baseline but it
+      # has not been tested against an actual incident. Watch it for a week
+      # before you trust it to page anyone.
+      - alert: XrplConsensusMinority
+        expr: >-
+          avg_over_time(xrpl_consensus_disputes_minority[15m])
+          / clamp_min(avg_over_time(xrpl_consensus_disputes[15m]), 1)
+          > 0.4
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} keeps voting against the majority"
+          description: >-
+            Sustained disagreement with peers about which transactions made
+            the ledger. Check the clock first, then the uplink.
+
+  - name: xrpl-peers
+    rules:
+
+      # No default that suits everyone. A validator wired to two stock nodes
+      # of its own should sit at exactly 2; a public node with peers_max at
+      # 140 will sit near that. Set the threshold per node group and delete
+      # this rule where it does not apply.
+      - alert: XrplPeersLow
+        expr: xrpl_peers_total < 5
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Only {{ $value }} peers on {{ $labels.instance }}"
+
+      # Measured on a stock node with 142 peers: the ten heaviest took 31% of
+      # everything sent. Past 60% a handful of peers is pulling history
+      # through you, which is the shape a bandwidth bill takes before anyone
+      # notices it.
+      - alert: XrplPeerTrafficConcentrated
+        expr: xrpl_peer_traffic_top_share > 0.6
+        for: 2h
+        labels: { severity: warning }
+        annotations:
+          summary: "Top peers take {{ $value | humanizePercentage }} of outbound on {{ $labels.instance }}"
+          description: >-
+            Check xrpl_peer_bytes_sent for the names. Being used as a cheap
+            history mirror looks exactly like this.
+
+      # Same node: p90 sat at 0.31s with a long tail to 6.9s on individual
+      # peers. A p90 above a second means the tail has become the norm.
+      - alert: XrplPeerLatencyDegraded
+        expr: xrpl_peer_latency_seconds{quantile="0.9"} > 1
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Peer round trip p90 on {{ $labels.instance }} is {{ $value }}s"
+
+      - alert: XrplPeersWrongNetwork
+        expr: xrpl_peers_wrong_network > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value }} peer(s) on {{ $labels.instance }} report a different network id"
+          description: >-
+            Either a neighbour is misconfigured or this node is pointed at the
+            wrong network. The second case is worth ruling out first.
+
+  - name: xrpl-exporter
+    rules:
+
+      # Collectors are independent, so one broken RPC does not take the rest
+      # down. That is convenient and also a way to lose a metric quietly for
+      # weeks, hence this.
+      - alert: XrplCollectorFailing
+        expr: xrpl_collector_failed == 1
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Collector {{ $labels.section }} on {{ $labels.instance }} keeps failing"
+          description: >-
+            Every metric from that section is stale. The rest of the exporter
+            is unaffected.
