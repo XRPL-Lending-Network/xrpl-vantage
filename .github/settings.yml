@@ -1,0 +1,23 @@
+# Repository metadata, in the format the Probot "Settings" app reads.
+# If you are not running that app, apply it by hand with:
+#
+#   gh repo edit --description "..." --add-topic xrpl --add-topic rippled ...
+#
+# The name does not carry the search load here. Somebody with this problem
+# types "rippled prometheus exporter" or "xrpl monitoring", and neither
+# matches "vantage", so the description and topics have to do that work.
+
+repository:
+  description: >-
+    Prometheus exporter, Grafana dashboard and alert rules for XRP Ledger
+    nodes: peer versions, bandwidth per peer, UNL expiry, amendment
+    activation and validator registry visibility. Standard library only.
+  homepage: ""
+  topics: >-
+    xrpl, xrp-ledger, rippled, xrpld, prometheus, prometheus-exporter,
+    grafana, grafana-dashboard, alerting, alertmanager, monitoring,
+    observability, blockchain, validator, node-monitoring
+  has_issues: true
+  has_wiki: false
+  has_projects: false
+  default_branch: main
