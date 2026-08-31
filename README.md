@@ -55,6 +55,7 @@ Everything is an environment variable, all optional.
 | `XRPL_INTERVAL_SLOW` | `60` | Trusted lists, amendments |
 | `XRPL_INTERVAL_REGISTRY` | `300` | The one outbound call |
 | `XRPL_REGISTRY` | `1` | Set to `0` on a machine with no internet |
+| `XRPL_MASTER_KEY` | node's own | Watch another validator's registry record from here |
 | `XRPL_PEER_TOP_N` | `10` | How many peers get their own byte counters |
 | `XRPL_AMENDMENT_LABELS` | `pending` | `all` to label every amendment |
 

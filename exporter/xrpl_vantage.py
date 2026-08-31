@@ -53,6 +53,17 @@ REGISTRY_URL = os.environ.get(
 REGISTRY_ENABLED = os.environ.get("XRPL_REGISTRY", "1") not in ("0", "false", "no")
 REGISTRY_TIMEOUT = float(os.environ.get("XRPL_REGISTRY_TIMEOUT", "30"))
 
+# Which validator to look up in the registry. Left empty the exporter uses the
+# key of the node it is attached to, which is the obvious thing to want.
+#
+# Setting it explicitly lets any node watch any validator, and there is a good
+# reason to: a validator kept off the public network does not necessarily want
+# to be making outbound calls to a third-party API from its own address. Point
+# a stock node at the validator's master key instead and the same metrics come
+# out, from a machine that is already public. The key itself is public
+# information, so there is nothing to protect here.
+REGISTRY_KEY = os.environ.get("XRPL_MASTER_KEY", "").strip()
+
 # The order matters: it is the order a node walks through on its way to being
 # useful, so the number is comparable across nodes.
 SERVER_STATES = ["disconnected", "connected", "syncing", "tracking",
@@ -619,7 +630,7 @@ def collect_registry():
     if not REGISTRY_ENABLED:
         return
     s = Section()
-    key = _master_key
+    key = REGISTRY_KEY or _master_key
     if not key:
         publish("registry", s)
         return
@@ -628,6 +639,9 @@ def collect_registry():
     # sequence number, which is worth graphing on its own because a manifest
     # going backwards means somebody deployed an old token, and the ephemeral
     # signing key, which the registry lookup below needs.
+    # A node that is not the validator itself may still know its manifest,
+    # because manifests propagate. If it does not, the section carries on
+    # without the sequence number.
     try:
         details = rpc("manifest", {"public_key": key}).get("details") or {}
         _signing_key = details.get("ephemeral_key") or _signing_key
