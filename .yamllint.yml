@@ -1,0 +1,17 @@
+# Config for yamllint, run by pre-commit and in CI.
+#
+# Two deviations from the default profile, both because Prometheus rule files
+# are written that way everywhere:
+#   - alert labels and annotations use inline maps: { severity: warning }
+#   - PromQL expressions run long and wrapping them hurts readability
+
+extends: default
+
+rules:
+  line-length:
+    max: 130
+  braces:
+    max-spaces-inside: 1
+  document-start: disable
+  truthy:
+    check-keys: false

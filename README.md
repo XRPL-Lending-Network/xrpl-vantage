@@ -148,6 +148,18 @@ the network view, that one covers node internals.
   written from memory
 - `docs/FALSE-POSITIVES.md`, the rules that were wrong and what replaced them
 
+## Contributing
+
+Bug reports and patches are welcome. `CONTRIBUTING.md` covers the conventions
+and the one hard rule of the project: the exporter depends on the standard
+library and nothing else.
+
+Security problems go through [private vulnerability reporting][pvr], not a
+public issue. See `SECURITY.md` for what is in scope and what belongs
+upstream with the XRP Ledger Foundation instead.
+
+[pvr]: https://github.com/XRPL-Lending-Network/xrpl-vantage/security/advisories/new
+
 ## Licence
 
 MIT.

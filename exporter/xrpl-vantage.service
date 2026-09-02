@@ -7,7 +7,7 @@
 
 [Unit]
 Description=XRPL Vantage exporter
-Documentation=https://github.com/OWNER/xrpl-vantage
+Documentation=https://github.com/XRPL-Lending-Network/xrpl-vantage
 After=network-online.target
 Wants=network-online.target
 

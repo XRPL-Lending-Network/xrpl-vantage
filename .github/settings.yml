@@ -12,7 +12,7 @@ repository:
     Prometheus exporter, Grafana dashboard and alert rules for XRP Ledger
     nodes: peer versions, bandwidth per peer, UNL expiry, amendment
     activation and validator registry visibility. Standard library only.
-  homepage: ""
+  homepage: "https://github.com/XRPL-Lending-Network/xrpl-vantage"
   topics: >-
     xrpl, xrp-ledger, rippled, xrpld, prometheus, prometheus-exporter,
     grafana, grafana-dashboard, alerting, alertmanager, monitoring,

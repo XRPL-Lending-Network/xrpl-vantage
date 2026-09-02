@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: exporter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - run: pip install ruff==0.16.5
+      - run: ruff check exporter/
+      # The exporter is expected to run on whatever Python the distribution
+      # ships, so it is checked against the oldest version it claims to work on.
+      - run: python -m compileall -q exporter/
+
+  yaml:
+    name: yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install yamllint==1.37.1
+      - run: yamllint -c .yamllint.yml .
+
+  rules:
+    name: alert rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # promtool parses every expression and rejects a rule file that would
+      # be silently ignored by Prometheus at load time.
+      - name: Install promtool
+        run: |
+          version=3.14.0
+          base=https://github.com/prometheus/prometheus/releases/download
+          archive=prometheus-${version}.linux-amd64
+          curl -sSfL "${base}/v${version}/${archive}.tar.gz" \
+            | tar xz --strip-components=1 "${archive}/promtool"
+          sudo install -m 0755 promtool /usr/local/bin/promtool
+      - run: promtool check rules rules/*.yml
+
+  dashboard:
+    name: dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate dashboard JSON
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+
+          with open("dashboards/xrpl-vantage.json") as handle:
+              dashboard = json.load(handle)
+
+          missing = [k for k in ("title", "uid", "panels") if k not in dashboard]
+          if missing:
+              sys.exit("dashboard is missing keys: " + ", ".join(missing))
+
+          print(f"{dashboard['title']}: {len(dashboard['panels'])} panels")
+          PY

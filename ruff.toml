@@ -1,0 +1,11 @@
+# Lint config for the exporter.
+#
+# Only `ruff check` runs in CI, never `ruff format`. The exporter is formatted
+# by hand: several tables and constant lists are laid out to be read, and the
+# formatter would expand them into one item per line for no gain.
+
+line-length = 100
+target-version = "py39"
+
+[lint]
+select = ["E", "F", "W"]
