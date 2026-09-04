@@ -148,6 +148,15 @@ the network view, that one covers node internals.
   written from memory
 - `docs/FALSE-POSITIVES.md`, the rules that were wrong and what replaced them
 
+## Deploying the shape this assumes
+
+[network-validator-operations][kit] is the companion piece: Ansible for a validator that
+talks only to stock nodes of your own, and a write-up of what went wrong while
+working that out. Several rules here exist because of failures described in
+that guide — the registry section most of all.
+
+[kit]: https://github.com/XRPL-Lending-Network/network-validator-operations
+
 ## Contributing
 
 Bug reports and patches are welcome. `CONTRIBUTING.md` covers the conventions
