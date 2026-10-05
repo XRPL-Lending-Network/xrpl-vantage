@@ -42,8 +42,8 @@ groups:
         annotations:
           summary: "Node on {{ $labels.instance }} is not caught up"
           description: >-
-            State is {{ $labels.state }}. A few minutes of this after a
-            restart is normal. Fifteen is not.
+            The node has not been ready for at least 15 minutes.
+            Check node synchronization and server state.
 
       # Ledgers close about every four seconds. Twenty is five closes behind,
       # which is past anything a healthy node does on its own.
