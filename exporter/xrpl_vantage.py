@@ -17,6 +17,7 @@ busy node server_info can take a second or two, and a scrape that waits for
 it turns node slowness into monitoring gaps.
 """
 
+import ipaddress
 import json
 import os
 import threading
@@ -155,6 +156,15 @@ def is_private_address(address):
     elif text.count(":") == 1:
         text = text.split(":")[0]
     text = text.lower()
+    # An IPv4 peer on a dual-stack socket arrives as ::ffff:10.0.0.20. Unwrap
+    # it so the IPv4 ranges below decide, rather than reading it as a public
+    # IPv6 address.
+    try:
+        mapped = ipaddress.IPv6Address(text).ipv4_mapped
+    except ValueError:
+        mapped = None
+    if mapped is not None:
+        text = str(mapped)
     if text.startswith(("fc", "fd", "fe8", "fe9", "fea", "feb")) or text in ("::1",):
         return True
     parts = text.split(".")
